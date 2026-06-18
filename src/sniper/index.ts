@@ -1,5 +1,5 @@
 import { getClient } from '../xrpl/client';
-import { getWallet, getBalance, getTokenBalances } from '../xrpl/wallet';
+import { getWallet, getBalance } from '../xrpl/wallet';
 import { executeAMMBuy } from '../xrpl/amm';
 import { IUser } from '../database/models';
 import { User, UserModel } from '../database/user';
@@ -54,7 +54,7 @@ export async function startSniper(userId: string): Promise<Result> {
 
         const client = await getClient();
         const wallet = getWallet();
-        const xrpBalance = await getBalance(client, wallet.address);
+        await getBalance(client, wallet.address);
         
         user.sniperActive = true;
         user.sniperStartTime = new Date();

@@ -1,0 +1,13 @@
+import { createServer, IncomingMessage, ServerResponse } from 'http';
+
+export type TradeStatus = 'SUCCESS' | 'FAILED' | 'PENDING';
+export type TradeType = 'BUY' | 'SELL' | 'SNIPE';
+export interface TradeRecord { id: string; timestamp: string; type: TradeType; token: string; amount: number; price: number; txHash: string | null; status: TradeStatus; pnl: number; }
+export interface TelemetryState { wallet?: string; activeTarget: string | null; buyMode: boolean; totalTrades: number; successfulTrades: number; failedTrades: number; volumeXRP: number; pnlXRP: number; trades: TradeRecord[]; }
+
+const startedAt = Date.now();
+export const telemetry: TelemetryState = { wallet: process.env.WALLET_ADDRESS || process.env.XRPL_WALLET_ADDRESS, activeTarget: null, buyMode: false, totalTrades: 0, successfulTrades: 0, failedTrades: 0, volumeXRP: 0, pnlXRP: 0, trades: [] };
+export function recordTrade(trade: Omit<TradeRecord, 'id' | 'timestamp'>): TradeRecord { const item = { ...trade, id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, timestamp: new Date().toISOString() }; telemetry.trades.unshift(item); telemetry.trades = telemetry.trades.slice(0, 100); telemetry.totalTrades++; if (trade.status === 'SUCCESS') telemetry.successfulTrades++; if (trade.status === 'FAILED') telemetry.failedTrades++; telemetry.volumeXRP += Math.abs(trade.amount * trade.price); telemetry.pnlXRP += trade.pnl || 0; return item; }
+function send(res: ServerResponse, value: unknown) { res.writeHead(200, { 'content-type': 'application/json', 'access-control-allow-origin': '*' }); res.end(JSON.stringify(value)); }
+export function startTelemetryServer(port = Number(process.env.PORT || 3000)) { const server = createServer((req: IncomingMessage, res: ServerResponse) => { if (req.method !== 'GET') { res.writeHead(405); return res.end(); } if (req.url === '/health' || req.url === '/api/status') return send(res, { status: telemetry.activeTarget ? 'ACTIVE' : 'ONLINE', uptime: Math.floor(process.uptime()), lastHeartbeat: new Date().toISOString(), wallet: telemetry.wallet ? `${telemetry.wallet.slice(0, 6)}...${telemetry.wallet.slice(-4)}` : null, activeTarget: telemetry.activeTarget, buyMode: telemetry.buyMode, stats: { totalTrades: telemetry.totalTrades, successfulTrades: telemetry.successfulTrades, failedTrades: telemetry.failedTrades, volumeXRP: telemetry.volumeXRP, pnlXRP: telemetry.pnlXRP } }); if (req.url === '/api/trades') return send(res, telemetry.trades); res.writeHead(404); res.end(); }); server.listen(port, '0.0.0.0', () => console.log(`Telemetry API listening on ${port}`)); return server; }
+void startedAt;

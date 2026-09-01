@@ -52,19 +52,16 @@ const config: Config = {
         transactionDivides: parseInt(process.env.SNIPER_TRANSACTION_DIVIDES || '1') || 1
     },
 
-    // Wallet Configuration
+    // Wallet Configuration. A seed is intentionally optional: index.ts selects
+    // mock mode when it is absent, allowing Render health/startup without a funded account.
     wallet: {
         seed: process.env.WALLET_SEED || '',
         address: process.env.WALLET_ADDRESS
     }
 };
 
-// Validate required configuration
-if (!config.wallet.seed) {
-    throw new Error('WALLET_SEED environment variable is required');
-}
-
-// No validation needed for storage - will use default path
+// Do not throw here. This module is imported by the Render entrypoint before
+// it decides whether to run live or mock mode. Requiring WALLET_SEED here
+// makes a no-wallet deployment fail before mock mode can start.
 
 export default config;
-
